@@ -23,11 +23,11 @@ This PowerShell script allows users to download pages from British Library EAP I
 ``` 
 Changing base url from
 
-https://images.eap.bl.uk/EAP127/EAP127_6_**70** -- for **sekh pharider puthi**
+https://images.eap.bl.uk/EAP127/EAP127_6_70 -- for **sekh pharider puthi**
 
 -------> to
 
-https://images.eap.bl.uk/EAP127/EAP127_6_**65** for **Jaiguner Puthi**
+https://images.eap.bl.uk/EAP127/EAP127_6_65 for **Jaiguner Puthi**
 
 > Based on the change in the book URL just like from
 
@@ -36,6 +36,8 @@ https://eap.bl.uk/archive-file/EAP127-6-70 (sekh pharider puthi)
 -------> to  
 
 https://eap.bl.uk/archive-file/EAP127-6-65 (Jaiguner Puthi).
+
+So in the base url you only need to change 70 to 65 based on the last part of the website url of the specific book you want to download. 
 ```
 
 1. **Open PowerShell ISE**:
