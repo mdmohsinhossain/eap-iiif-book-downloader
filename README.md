@@ -17,8 +17,26 @@ This PowerShell script allows users to download pages from British Library EAP I
 
 ### Customizing the Script
    - Set the **Book Name**.
-   - Specify the **Book URL**.
-   - Define the **output folder**.
+   - Define the **output folder**.   
+  - Specify the **Book/Base URL** after running the script such as:
+  
+``` 
+Changing base url from
+
+https://images.eap.bl.uk/EAP127/EAP127_6_**70** -- for **sekh pharider puthi**
+
+-------> to
+
+https://images.eap.bl.uk/EAP127/EAP127_6_**65** for **Jaiguner Puthi**
+
+> Based on the change in the book URL just like from
+
+https://eap.bl.uk/archive-file/EAP127-6-70 (sekh pharider puthi)
+
+-------> to  
+
+https://eap.bl.uk/archive-file/EAP127-6-65 (Jaiguner Puthi).
+```
 
 1. **Open PowerShell ISE**:
    - Press `Win + R`, type `powershell_ise`, and press Enter.
@@ -54,16 +72,6 @@ This PowerShell script allows users to download pages from British Library EAP I
      ```
 
 3. **Example Commands**:
-
-   - Known page count (e.g., 28 pages) and generate a PDF at the end with a custom book name:
-     ```powershell
-     .\GET_EAPBook_MMH_V2.ps1 `
-       -Base "https://images.eap.bl.uk/EAP127/EAP127_6_70" `
-       -Pages 28 `
-       -BookName "Sekh Pharider Puthi" `
-       -OutDir "C:\Users\YourUsername\Desktop\EAP_Download" `
-       -MakePdf
-     ```
 
    - Auto-detect page count (no `-Pages` option) and create a PDF:
      ```powershell
