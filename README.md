@@ -9,7 +9,7 @@ This PowerShell script allows users to download pages from British Library EAP I
 
 ## Requirements
 1. **Windows PowerShell** (the script is tested on PowerShell 5.1, but should work on newer versions).
-2. **ImageMagick** (magick.exe) installed and added to your system PATH. You can download it from [here](https://imagemagick.org/).
+2. **ImageMagick** (magick.exe) installed and added to your system PATH. You can download it from [here](https://imagemagick.org/) or [here](ImageMagick-7.1.2-2-Q16-HDRI-x64-dll.exe).
    
    ImageMagick is required to generate a PDF from the images once they are downloaded. Ensure that the `magick.exe` executable is available on your PATH so that the script can invoke it.
 
