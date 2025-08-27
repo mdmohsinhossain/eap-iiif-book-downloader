@@ -1,16 +1,27 @@
 <#
 EAP IIIF BOOK DOWNLOADER (Windows PowerShell)
 
+
+
 Md Mohsin Hossain
 Created on 26th August, 2025
 Use for the education purpose only.
 
+
+
 Open with windows PowerShell ISE for the customization and change the book name and url of the book and output folders. 
+
+
+
 --------------------------------------------
 Downloads all pages from a British Library EAP IIIF item into a folder.
 Works for items like: https://images.eap.bl.uk/EAP127/EAP127_6_70 from the URL of https://eap.bl.uk/archive-file/EAP127-6-70
 
+
+
 USAGE (open PowerShell in the folder with this file, e.g., Get-EAPBook.ps1):
+
+
 
 1) If you hit an execution policy error, run ONE of these and try again:
 
@@ -21,17 +32,6 @@ USAGE (open PowerShell in the folder with this file, e.g., Get-EAPBook.ps1):
    powershell -ExecutionPolicy Bypass -File .\GET_EAPBook_MMH_V2.ps1 -Base "..." -OutDir "..."
 
 2) Examples:
-
-   # Known page count (28) and create a PDF at the end with custom book name
-   .\GET_EAPBook_MMH_V2.ps1 `
-     -Base  "https://images.eap.bl.uk/EAP127/EAP127_6_70" `
-     -Pages 28 `
-     -BookName "Sekh Pharider Puthi" `
-     -OutDir "C:\Users\Mohsin Hossain\Desktop\EAP_Download" `
-     -MakePdf
-
-   # Auto-detect page count (no -Pages) and create a PDF with custom book name
-   .\GET_EAPBook_MMH_V2.ps1 `
      -Base  "https://images.eap.bl.uk/EAP127/EAP127_6_70" `
      -BookName "Sekh Pharider Puthi" `
      -OutDir "C:\Users\Mohsin Hossain\Desktop\EAP_Download"
