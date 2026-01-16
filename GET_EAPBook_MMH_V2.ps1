@@ -1,77 +1,81 @@
 <#
-EAP IIIF BOOK DOWNLOADER (Windows PowerShell)
+.SYNOPSIS
+    EAP IIIF Book Downloader for Windows PowerShell.
 
+.DESCRIPTION
+    Downloads all pages from a British Library EAP IIIF item and compiles them into a PDF.
+    Works for items like: https://images.eap.bl.uk/EAP127/EAP127_6_70
 
+.PARAMETER Base
+    The base IIIF path WITHOUT the page/size bits.
+    Example: "https://images.eap.bl.uk/EAP127/EAP127_6_70"
 
-Md Mohsin Hossain
-Created on 26th August, 2025
-Use for the education purpose only.
+.PARAMETER Pages
+    Optional known page count. If omitted (or 0), the script auto-detects it.
 
+.PARAMETER BookName
+    Name for the book (used for naming PDF, images, and folder). Defaults to "EAP_Book".
 
+.PARAMETER OutDir
+    Output directory. Defaults to a folder on your Desktop named after the BookName.
 
-Open with windows PowerShell ISE for the customization and change the book name and url of the book and output folders. 
+.PARAMETER DelayMs
+    Delay between requests (milliseconds) to avoid overloading the server. Defaults to 300.
 
+.PARAMETER MakePdf
+    Switch to compile a PDF from the downloaded images at the end (requires ImageMagick).
 
+.EXAMPLE
+    .\GET_EAPBook_MMH_V2.ps1 -Base "https://images.eap.bl.uk/EAP127/EAP127_6_70" -BookName "Sekh Pharider Puthi"
 
---------------------------------------------
-Downloads all pages from a British Library EAP IIIF item into a folder.
-Works for items like: https://images.eap.bl.uk/EAP127/EAP127_6_70 from the URL of https://eap.bl.uk/archive-file/EAP127-6-70
+.NOTES
+    Author: Md Mohsin Hossain
+    Created: 26th August, 2025
+    Intended for educational use only.
 
-
-
-USAGE (open PowerShell in the folder with this file, e.g., Get-EAPBook.ps1):
-
-
-
-1) If you hit an execution policy error, run ONE of these and try again:
-
-   # Temporary for THIS shell only (recommended)
-   Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
-
-   # Or run with a one-time override:
-   powershell -ExecutionPolicy Bypass -File .\GET_EAPBook_MMH_V2.ps1 -Base "..." -OutDir "..."
-
-2) Examples:
-     -Base  "https://images.eap.bl.uk/EAP127/EAP127_6_70" `
-     -BookName "Sekh Pharider Puthi" `
-     -OutDir "C:\Users\Mohsin Hossain\Desktop\EAP_Download"
-
-NOTES:
-- The script requests the largest allowed image size advertised by the IIIF server.
-- Be polite to the server; a small delay is included (tune with -DelayMs).
-- PDF creation requires ImageMagick (magick.exe) on PATH.
+    REQUIREMENTS:
+    - PDF creation requires ImageMagick (magick.exe) on PATH.
+    - If you hit an execution policy error, run:
+        Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
 #>
 
 [CmdletBinding()]
 param(
-    # Base IIIF path WITHOUT the page/size bits (Example: "https://images.eap.bl.uk/EAP127/EAP127_6_70")
-    [Parameter(Mandatory=$true)]
+    [Parameter(Mandatory = $true, HelpMessage = "Base IIIF path, e.g., https://images.eap.bl.uk/EAP127/EAP127_6_70")]
     [string]$Base,
 
-    # Optional known page count. If omitted (or 0), the script auto-detects it.
+    [Parameter(HelpMessage = "Total page count. If 0, auto-detects.")]
     [int]$Pages = 0,
 
-    # Name for the book (used for naming PDF, images, and folder)
-    [string]$BookName = "jaiguner puthi",  # Insert the book name here that you want to download
+    [Parameter(HelpMessage = "Name for the book, used for file and folder naming.")]
+    [string]$BookName = "EAP_Book",
 
-    # Delay between requests (milliseconds) to avoid overloading the server
+    [Parameter(HelpMessage = "Output directory for images and PDF.")]
+    [string]$OutDir,
+
+    [Parameter(HelpMessage = "Delay between requests in milliseconds.")]
     [int]$DelayMs = 300,
 
-    # Build a PDF at the end (requires ImageMagick)
+    [Parameter(HelpMessage = "Create a PDF from downloaded images.")]
     [switch]$MakePdf
 )
 
-# Custom folder for the book based on the book name
-$OutDir = "C:\Users\Mohsin Hossain\Desktop\EAP_Download\$BookName"  # Folder name based on book name
+# --- Helper Functions ---
 
-# Create the output folder if it doesn't exist
-New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
+function Get-SanitizedFileName {
+    param([string]$Name)
+    # Remove or replace characters that are invalid in Windows file/folder names
+    $invalidChars = [System.IO.Path]::GetInvalidFileNameChars() -join ''
+    $sanitized = $Name -replace "[$([regex]::Escape($invalidChars))]", '_'
+    return $sanitized.Trim()
+}
 
-# Function to get the best image size based on IIIF server metadata
 function Get-IIIFSizeParam {
     param([hashtable]$Info)
     # If server advertises v3 limits, prefer 'full/max'
-    if ($Info.maxWidth -or $Info.maxHeight -or $Info.maxArea) { return "full/max" }
+    if ($Info.maxWidth -or $Info.maxHeight -or $Info.maxArea) {
+        return "full/max"
+    }
     # Otherwise pick the largest listed size (if any)
     if ($Info.sizes) {
         $largest = $Info.sizes | Sort-Object { $_.width * $_.height } -Descending | Select-Object -First 1
@@ -81,59 +85,144 @@ function Get-IIIFSizeParam {
     return "full/max"
 }
 
-# Auto-detect the number of pages if not provided
-if ($Pages -lt 1) {
-    $n = 1
-    while ($true) {
-        try   { Invoke-RestMethod "$Base/$n.jp2/info.json" -ErrorAction Stop | Out-Null; $n++ }
-        catch { break }
+function Test-ImageMagick {
+    try {
+        $null = Get-Command magick -ErrorAction Stop
+        return $true
+    } catch {
+        return $false
     }
-    $Pages = $n - 1
-    if ($Pages -lt 1) { throw "No pages discovered under $Base" }
-    Write-Host "Detected $Pages pages."
 }
 
-# Download images (JPG) for each page and name them based on the book name
+# --- Pre-flight Checks ---
+
+$hasImageMagick = Test-ImageMagick
+if ($MakePdf -and -not $hasImageMagick) {
+    Write-Warning "ImageMagick (magick.exe) not found on PATH. PDF creation will be skipped."
+}
+
+# --- Setup ---
+
+# Sanitize BookName
+$BookName = Get-SanitizedFileName -Name $BookName
+
+# Set default OutDir if not provided
+if (-not $OutDir) {
+    $desktopPath = [Environment]::GetFolderPath("Desktop")
+    $OutDir = Join-Path $desktopPath "EAP_Download\$BookName"
+}
+
+# Create the output folder if it doesn't exist
+New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
+Write-Host "Output directory: $OutDir" -ForegroundColor Cyan
+
+# --- Auto-detect Page Count ---
+
+if ($Pages -lt 1) {
+    Write-Host "Detecting page count..." -ForegroundColor Yellow
+    $n = 1
+    while ($true) {
+        try {
+            Invoke-RestMethod "$Base/$n.jp2/info.json" -ErrorAction Stop | Out-Null
+            $n++
+        } catch {
+            break
+        }
+    }
+    $Pages = $n - 1
+    if ($Pages -lt 1) {
+        throw "No pages discovered under $Base. Please verify the URL."
+    }
+    Write-Host "Detected $Pages pages." -ForegroundColor Green
+}
+
+# --- Determine Best Image Size ---
+
+Write-Host "Fetching IIIF info for optimal image size..." -ForegroundColor Yellow
+$sizeParam = "full/max" # Default fallback
+try {
+    $infoUrl = "$Base/1.jp2/info.json"
+    $infoData = Invoke-RestMethod $infoUrl -ErrorAction Stop
+    # Convert to hashtable for compatibility
+    $infoHash = @{}
+    $infoData.PSObject.Properties | ForEach-Object { $infoHash[$_.Name] = $_.Value }
+    $sizeParam = Get-IIIFSizeParam -Info $infoHash
+    Write-Host "Using image size: $sizeParam" -ForegroundColor Green
+} catch {
+    Write-Warning "Could not fetch IIIF info. Using default size: $sizeParam"
+}
+
+# --- Download Images ---
+
+Write-Host "Starting download of $Pages pages..." -ForegroundColor Cyan
+$failedPages = @()
+
 for ($i = 1; $i -le $Pages; $i++) {
     $pad = "{0:D3}" -f $i
-    $outfile = Join-Path $OutDir "$BookName-$pad.jpg"  # Name images based on the book name
+    $outfile = Join-Path $OutDir "$BookName-$pad.jpg"
 
-    # Try several canonical IIIF URL patterns; save on the first success
+    # Show progress
+    $percent = [int](($i / $Pages) * 100)
+    Write-Progress -Activity "Downloading pages" -Status "Page $i of $Pages" -PercentComplete $percent
+
+    # Try several canonical IIIF URL patterns; save on first success
     $candidates = @(
-        "$Base/$i.jp2/$sizeParam/0/default.jpg",   # chosen best size
-        "$Base/$i.jp2/full/max/0/default.jpg",     # IIIF v3 style
-        "$Base/$i.jp2/full/full/0/default.jpg",    # IIIF v2 style
-        "$Base/$i.jp2/full/!8000,8000/0/default.jpg"  # big fallback
+        "$Base/$i.jp2/$sizeParam/0/default.jpg",      # Chosen best size
+        "$Base/$i.jp2/full/max/0/default.jpg",        # IIIF v3 style
+        "$Base/$i.jp2/full/full/0/default.jpg",       # IIIF v2 style
+        "$Base/$i.jp2/full/!8000,8000/0/default.jpg"  # Big fallback
     ) | Select-Object -Unique
 
     $ok = $false
     foreach ($u in $candidates) {
         try {
             Invoke-WebRequest -Uri $u -OutFile $outfile -UseBasicParsing -ErrorAction Stop
-            Write-Host ("Saved page {0,3} -> {1}" -f $i, $outfile)
+            Write-Host ("Saved page {0,3} -> {1}" -f $i, (Split-Path $outfile -Leaf)) -ForegroundColor Gray
             $ok = $true
             break
-        } catch { }  # try next candidate
+        } catch {
+            # try next candidate
+        }
     }
-    if (-not $ok) { Write-Warning "Failed to download page $i" }
+
+    if (-not $ok) {
+        Write-Warning "Failed to download page $i"
+        $failedPages += $i
+    }
 
     Start-Sleep -Milliseconds $DelayMs
 }
 
-# compile to PDF if ImageMagick is installed
-# Define the output PDF path
-$pdfPath = Join-Path $OutDir "$BookName.pdf"  # Name the PDF based on the book name
+Write-Progress -Activity "Downloading pages" -Completed
 
-# Attempt to create the PDF from the images in the output folder
-Write-Host "Attempting to create PDF from images in $OutDir..."
+# --- Create PDF ---
 
-# Use the ImageMagick command to create the PDF
-try {
-    # Run the ImageMagick command to create a PDF from all images
-    & magick "$OutDir\$BookName*.jpg" "$pdfPath"
-    Write-Host "PDF created successfully at $pdfPath"
-} catch {
-    Write-Host "Error creating PDF: $_"
+if ($hasImageMagick) {
+    $pdfPath = Join-Path $OutDir "$BookName.pdf"
+    Write-Host "Creating PDF from images..." -ForegroundColor Cyan
+
+    try {
+        $imagePattern = Join-Path $OutDir "$BookName-*.jpg"
+        & magick $imagePattern $pdfPath
+        if (Test-Path $pdfPath) {
+            Write-Host "PDF created successfully: $pdfPath" -ForegroundColor Green
+        } else {
+            Write-Warning "PDF file was not created. Check ImageMagick output."
+        }
+    } catch {
+        Write-Warning "Error creating PDF: $_"
+    }
+} else {
+    Write-Host "Skipping PDF creation (ImageMagick not available)." -ForegroundColor Yellow
 }
 
-Write-Host "Done. Images and Pdf saved in: $OutDir"
+# --- Summary ---
+
+Write-Host "`n--- Download Complete ---" -ForegroundColor Green
+Write-Host "Images saved in: $OutDir"
+if ($hasImageMagick) {
+    Write-Host "PDF saved as: $BookName.pdf"
+}
+if ($failedPages.Count -gt 0) {
+    Write-Warning ("Failed pages: " + ($failedPages -join ", "))
+}

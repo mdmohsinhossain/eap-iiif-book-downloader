@@ -1,104 +1,72 @@
 # EAP IIIF Book Downloader
 
 ## Description
-This PowerShell script allows users to download pages from British Library EAP IIIF items and convert them into a PDF. It is **intended for educational use only** and is not intended for business or commercial purposes. By using this script, you agree to give proper attribution to the original author.
-
-## Tested on:
-- **Operating System**: Windows 10
-- **PowerShell**: Windows PowerShell 5.1 (other versions might work but are untested)
+This PowerShell script downloads pages from British Library EAP IIIF items and converts them into a PDF. It is **intended for educational use only**.
 
 ## Requirements
-1. **Windows PowerShell** (the script is tested on PowerShell 5.1, but should work on newer versions).
-2. **ImageMagick** (magick.exe) installed and added to your system PATH. You can download it from [here](https://imagemagick.org/) or [here](ImageMagick-7.1.2-2-Q16-HDRI-x64-dll.exe).
-   
-   ImageMagick is required to generate a PDF from the images once they are downloaded. Ensure that the `magick.exe` executable is available on your PATH so that the script can invoke it.
+1. **Windows PowerShell** (tested on 5.1)
+2. **ImageMagick** (optional, for PDF creation) - [Download here](https://imagemagick.org/). The `magick.exe` must be on your system PATH.
 
-## Usage
+## Quick Start
 
-### Customizing the Script
-   - Set the **Book Name**.
-   - Define the **output folder**.   
-  - Specify the **Book/Base URL** after running the script such as:
-  
-``` 
-Changing base url from
+1. **Open PowerShell** in the folder containing `GET_EAPBook_MMH_V2.ps1`.
 
-https://images.eap.bl.uk/EAP127/EAP127_6_70 -- for **sekh pharider puthi**
+2. **If you get an execution policy error**, run this first:
+   ```powershell
+   Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+   ```
 
--------> to
+3. **Run the script**:
+   ```powershell
+   .\GET_EAPBook_MMH_V2.ps1 -Base "https://images.eap.bl.uk/EAP127/EAP127_6_70" -BookName "Sekh Pharider Puthi"
+   ```
+   This will auto-detect pages and save images/PDF to your Desktop under `EAP_Download\Sekh Pharider Puthi`.
 
-https://images.eap.bl.uk/EAP127/EAP127_6_65 for **Jaiguner Puthi**
+## Parameters
 
-> Based on the change in the book URL just like from
+| Parameter   | Required | Description                                                                 |
+|-------------|----------|-----------------------------------------------------------------------------|
+| `-Base`     | Yes      | Base IIIF URL (e.g., `https://images.eap.bl.uk/EAP127/EAP127_6_70`)         |
+| `-BookName` | No       | Name for the book (default: `EAP_Book`)                                     |
+| `-OutDir`   | No       | Output folder. Defaults to `Desktop\EAP_Download\<BookName>`                |
+| `-Pages`    | No       | Total page count. If omitted, auto-detects                                  |
+| `-DelayMs`  | No       | Delay between requests in ms (default: `300`)                               |
+| `-MakePdf`  | No       | Switch to explicitly request PDF creation (requires ImageMagick)            |
 
-https://eap.bl.uk/archive-file/EAP127-6-70 (sekh pharider puthi)
+## Examples
 
--------> to  
-
-https://eap.bl.uk/archive-file/EAP127-6-65 (Jaiguner Puthi).
-
-So in the base url you only need to change 70 to 65 based on the last part of the website url of the specific book you want to download. 
+**Auto-detect pages, custom output folder:**
+```powershell
+.\GET_EAPBook_MMH_V2.ps1 `
+  -Base "https://images.eap.bl.uk/EAP127/EAP127_6_65" `
+  -BookName "Jaiguner Puthi" `
+  -OutDir "D:\MyBooks"
 ```
 
-1. **Open PowerShell ISE**:
-   - Press `Win + R`, type `powershell_ise`, and press Enter.
-   - Alternatively, search for "Windows PowerShell ISE" in the Start menu and open it.
+**Specify page count, skip auto-detection:**
+```powershell
+.\GET_EAPBook_MMH_V2.ps1 `
+  -Base "https://images.eap.bl.uk/EAP127/EAP127_6_70" `
+  -BookName "Sekh Pharider Puthi" `
+  -Pages 50
+```
 
-2. **Open the Script**:
-   - In PowerShell ISE, click on `File` > `Open` and select the `Get-EAPBook.ps1` script.
+## How to Find the Base URL
 
-3. **Customize Parameters**:
-   - Modify the following variables in the script:
-     - `$Base`: Set this to the base URL of the IIIF item (e.g., `"https://images.eap.bl.uk/EAP127/EAP127_6_70"`).
-     - `$Pages`: Set the total number of pages to download. If set to `0`, the script will attempt to auto-detect the page count.
-     - `$BookName`: Set the desired name for the book (used for naming PDF, images, and folder).
-     - `$OutDir`: Set the output directory where images and the PDF will be saved.
-     - `$DelayMs`: Set the delay between requests to avoid overloading the server (default is 200 milliseconds).
-     - `$MakePdf`: Add the `-MakePdf` switch if you want to generate a PDF from the downloaded images.
+1. Go to an EAP archive page, e.g., `https://eap.bl.uk/archive-file/EAP127-6-70`
+2. The Base URL for the script is: `https://images.eap.bl.uk/EAP127/EAP127_6_70`  
+   (Replace `-` with `_` and use `images.eap.bl.uk`)
 
-4. **Run the Script**:
-   - Press `F5` or click on the `Run Script` button in the toolbar to execute the script.
-   - The script will download the pages, save them as images, and optionally generate a PDF if ImageMagick is available.
+## Notes
+- The script fetches the largest allowed image size from the IIIF server.
+- A delay between requests is included by default to be polite to the server.
+- If ImageMagick is not installed, images will still be downloaded but no PDF will be created.
 
-### Alternative Way of Running the Script
-1. Open PowerShell in the folder where the script is located (`GET_EAPBook_MMH_V2.ps1`).
+## Contributing
 
-2. **If you encounter an execution policy error**, run one of these commands before running the script again:
-   - For temporary changes (recommended):
-     ```powershell
-     Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
-     ```
-   - Or run with a one-time override:
-     ```powershell
-     powershell -ExecutionPolicy Bypass -File .\GET_EAPBook_MMH_V2.ps1 -Base "..." -OutDir "..."
-     ```
-
-3. **Example Commands**:
-
-   - Auto-detect page count (no `-Pages` option) and create a PDF:
-     ```powershell
-     .\GET_EAPBook_MMH_V2.ps1 `
-       -Base "https://images.eap.bl.uk/EAP127/EAP127_6_70" `
-       -BookName "Sekh Pharider Puthi" `
-       -OutDir "C:\Users\YourUsername\Desktop\EAP_Download"
-     ```
-
-## Notes:
-- The script fetches the largest allowed image size available from the IIIF server.
-- A small delay between requests is included by default (`-DelayMs`), to avoid overloading the server. You can adjust the delay as needed.
-- **PDF creation** requires ImageMagick installed and added to your PATH. If ImageMagick is not available, the script will download the images but will not generate a PDF.
-
-# Contributing
-
-Thank you for considering contributing to this project!
-
-## How to Contribute
 1. Fork the repository.
-2. Make your changes in a new branch.
-3. Submit a pull request describing the changes you’ve made.
+2. Make changes in a new branch.
+3. Submit a pull request.
 
-Please ensure that your contributions comply with the following guidelines:
-- Follow the repository's coding style.
-- Ensure your changes are for educational, non-commercial use.
-
+---
 © 2025 Md Mohsin Hossain. All rights reserved.
